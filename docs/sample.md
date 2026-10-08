@@ -1,6 +1,6 @@
 ---
 title: minmd sample
-tags: [markdown, solarized]
+tags: [markdown, viewer]
 ---
 
 # minmd
@@ -9,7 +9,7 @@ An **extremely minimal** Markdown viewer — *no editing*, just reading. See [Co
 
 ## Text
 
-Paragraphs, `inline code`, ~~strikethrough~~, <kbd>⌘</kbd> + <kbd>F</kbd>, and autolinks like https://example.com.
+Paragraphs, `inline code`, ~~strikethrough~~ and autolinks like https://example.com.
 
 > Blockquotes look like this.
 > They can span lines.
@@ -18,9 +18,6 @@ Paragraphs, `inline code`, ~~strikethrough~~, <kbd>⌘</kbd> + <kbd>F</kbd>, and
   - nested
 - [x] Done task
 - [ ] Open task
-
-1. First
-2. Second
 
 ## Code
 
@@ -31,16 +28,17 @@ struct Greeting {
 }
 ```
 
-```js
-const answer = [1, 2, 3].map((n) => n * 14).at(-1); // 42
-```
-
-### Table
-
-| Setting | Values               |
-|---------|----------------------|
+| Setting | Values                |
+|---------|-----------------------|
 | Theme   | System · Light · Dark |
-| Font    | JetBrains Mono, …    |
+| Font    | JetBrains Mono, …     |
 
----
+## Diagram
 
+```mermaid
+graph LR
+  A[Finder] -->|double-click| B(minmd)
+  A -->|space| C(Quick Look)
+  B --> D{Native render}
+  C --> D
+```

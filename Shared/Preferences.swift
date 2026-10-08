@@ -52,29 +52,104 @@ enum Theme: String, CaseIterable, Identifiable {
     }
 }
 
-/// Fonts offered before the list of installed families. Values starting with `ui-` / `-apple-`
-/// are CSS generic families and are passed through unquoted.
-enum FontChoice {
-    static let builtIn: [(name: String, value: String)] = [
-        ("JetBrains Mono", "JetBrains Mono"),
-        ("SF Pro", "-apple-system"),
-        ("New York", "ui-serif"),
-        ("SF Mono", "ui-monospace"),
-    ]
+/// GitHub's Primer palette. Every color is dynamic, so a theme switch needs no re-render.
+enum Palette {
+    static let background = color(0xFFFFFF, 0x0D1117)
+    static let text = color(0x1F2328, 0xE6EDF3)
+    static let muted = color(0x59636E, 0x9198A1)
+    static let border = color(0xD1D9E0, 0x3D444D)
+    static let codeBackground = color(0xF6F8FA, 0x151B23)
+    static let inlineCodeBackground = color(0xEFF1F3, 0x232931)
+    static let link = color(0x0969DA, 0x4493F8)
 
-    static func cssStack(for family: String) -> String {
-        let primary = family.hasPrefix("ui-") || family.hasPrefix("-apple-")
-            ? family
-            : "\"\(family.replacingOccurrences(of: "\"", with: ""))\""
-        return "\(primary), \"JetBrains Mono\", ui-monospace, monospace"
+    enum Syntax {
+        static let keyword = color(0xCF222E, 0xFF7B72)
+        static let entity = color(0x6639BA, 0xD2A8FF)
+        static let constant = color(0x0550AE, 0x79C0FF)
+        static let string = color(0x0A3069, 0xA5D6FF)
+        static let variable = color(0x953800, 0xFFA657)
+        static let tag = color(0x116329, 0x7EE787)
+        static let comment = color(0x59636E, 0x9198A1)
+    }
+
+    private static func color(_ light: UInt32, _ dark: UInt32) -> NSColor {
+        NSColor(name: nil) { appearance in
+            let hex = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? dark : light
+            return NSColor(srgbRed: CGFloat((hex >> 16) & 0xFF) / 255,
+                           green: CGFloat((hex >> 8) & 0xFF) / 255,
+                           blue: CGFloat(hex & 0xFF) / 255, alpha: 1)
+        }
     }
 }
 
-extension NSColor {
-    /// Solarized base3 / base03 — the page background, used to avoid flashes before the page paints.
-    static let solarizedBackground = NSColor(name: nil) { appearance in
-        appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
-            ? NSColor(srgbRed: 0x00 / 255, green: 0x2B / 255, blue: 0x36 / 255, alpha: 1)
-            : NSColor(srgbRed: 0xFD / 255, green: 0xF6 / 255, blue: 0xE3 / 255, alpha: 1)
+/// Font choices. Values starting with "." are system fonts; anything else is a font family name.
+enum Fonts {
+    static let builtIn: [(name: String, value: String)] = [
+        ("JetBrains Mono", "JetBrains Mono"),
+        ("SF Pro", ".system"),
+        ("New York", ".serif"),
+        ("SF Mono", ".mono"),
+    ]
+
+    /// Registers the bundled JetBrains Mono for this process (app or extension). Cheap and idempotent.
+    static let registerBundled: Void = {
+        let urls = ["Regular", "Italic", "Bold", "BoldItalic"].compactMap {
+            Bundle.main.url(forResource: "JetBrainsMono-\($0)", withExtension: "ttf")
+        }
+        CTFontManagerRegisterFontURLs(urls as CFArray, .process, false, nil)
+    }()
+
+    static func body(_ family: String, size: CGFloat) -> NSFont {
+        _ = registerBundled
+        switch family {
+        case ".system":
+            return .systemFont(ofSize: size)
+        case ".serif":
+            let descriptor = NSFont.systemFont(ofSize: size).fontDescriptor.withDesign(.serif)
+            return descriptor.flatMap { NSFont(descriptor: $0, size: size) } ?? .systemFont(ofSize: size)
+        case ".mono":
+            return .monospacedSystemFont(ofSize: size, weight: .regular)
+        default:
+            return regular(family, size: size) ?? code(size: size)
+        }
+    }
+
+    static func code(size: CGFloat) -> NSFont {
+        _ = registerBundled
+        return regular("JetBrains Mono", size: size) ?? .monospacedSystemFont(ofSize: size, weight: .regular)
+    }
+
+    /// Thread-safe (unlike NSFontManager), so documents can be rendered off the main thread.
+    static func styled(_ font: NSFont, bold: Bool, italic: Bool) -> NSFont {
+        guard bold || italic else { return font }
+        var traits = font.fontDescriptor.symbolicTraits
+        if bold { traits.insert(.bold) }
+        if italic { traits.insert(.italic) }
+        return NSFont(descriptor: font.fontDescriptor.withSymbolicTraits(traits), size: font.pointSize) ?? font
+    }
+
+    private static func regular(_ family: String, size: CGFloat) -> NSFont? {
+        let descriptor = NSFontDescriptor(fontAttributes: [
+            .family: family,
+            .traits: [NSFontDescriptor.TraitKey.weight: NSFont.Weight.regular],
+        ])
+        guard let font = NSFont(descriptor: descriptor, size: size),
+              font.familyName == family else { return nil }
+        return font
+    }
+
+    /// Pays TextKit's and CoreText's one-time setup (~25 ms) on a background thread while AppKit
+    /// is still finishing launch, instead of on the main thread when the first document arrives.
+    static func warmUp(fontFamily: String) {
+        DispatchQueue.global(qos: .userInteractive).async {
+            let sample = "# A\n\n**b** *i* `c` [l](#a)\n\n> q\n\n- [x] t\n1. n\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\n```\nx\n```\n"
+            let text = MarkdownRenderer(fontFamily: fontFamily, size: 14, directory: nil).render(sample).text
+            let storage = NSTextStorage(attributedString: text)
+            let layout = NSLayoutManager()
+            storage.addLayoutManager(layout)
+            let container = NSTextContainer(size: NSSize(width: 600, height: 10_000))
+            layout.addTextContainer(container)
+            layout.ensureLayout(for: container)
+        }
     }
 }

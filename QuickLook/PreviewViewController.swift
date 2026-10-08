@@ -1,12 +1,12 @@
 import Cocoa
 import Quartz
 
-/// Finder's space-bar preview, rendered with the same page and settings as the app.
+/// Finder's space-bar preview, rendered natively with the same renderer and settings as the app.
 final class PreviewViewController: NSViewController, QLPreviewingController {
-    private let webView = MarkdownWebView()
+    private let viewer = MarkdownViewer()
 
     override func loadView() {
-        view = webView
+        view = viewer.scrollView
         preferredContentSize = NSSize(width: 860, height: 1000)
     }
 
@@ -18,21 +18,14 @@ final class PreviewViewController: NSViewController, QLPreviewingController {
             handler(error)
             return
         }
-
         view.appearance = Preferences.theme.appearance
-        webView.pageZoom = Preferences.zoom
-        webView.onOpenURL = { NSWorkspace.shared.open($0) }
-
-        // Hand the preview over once it has painted, or after a short timeout at the latest.
-        var finished = false
-        let finish = {
-            guard !finished else { return }
-            finished = true
-            handler(nil)
-        }
-        webView.onReady = finish
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2, execute: finish)
-
-        webView.show(markdown: Renderer.decode(data), fontFamily: Preferences.fontFamily, baseURL: url.deletingLastPathComponent())
+        viewer.currentFilePath = url.path
+        viewer.onOpenURL = { NSWorkspace.shared.open($0) }
+        let text = String(data: data, encoding: .utf8)
+            ?? String(data: data, encoding: .windowsCP1252)
+            ?? String(decoding: data, as: UTF8.self)
+        viewer.show(markdown: text, directory: url.deletingLastPathComponent(),
+                    fontFamily: Preferences.fontFamily, zoom: Preferences.zoom)
+        handler(nil)
     }
 }

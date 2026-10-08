@@ -6,6 +6,11 @@ options:
   createIntermediateGroups: true
   generateEmptyDirectories: true
 
+packages:
+  Markdown:
+    url: https://github.com/swiftlang/swift-markdown
+    exactVersion: 0.8.0
+
 settings:
   base:
     MARKETING_VERSION: 0.1.0
@@ -28,6 +33,7 @@ targets:
       - App
       - Shared
     dependencies:
+      - package: Markdown
       - target: MinMDQuickLook
         embed: true
     settings:
@@ -39,6 +45,7 @@ targets:
       path: App/Info.plist
       properties:
         CFBundleDisplayName: minmd
+        NSPrincipalClass: NSApplication
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         LSApplicationCategoryType: public.app-category.productivity
@@ -48,6 +55,7 @@ targets:
           - CFBundleTypeName: Markdown Document
             CFBundleTypeRole: Viewer
             LSHandlerRank: Default
+            NSDocumentClass: $(PRODUCT_MODULE_NAME).MarkdownDocument
             LSItemContentTypes:
               - net.daringfireball.markdown
         UTImportedTypeDeclarations:
@@ -74,6 +82,8 @@ targets:
     sources:
       - QuickLook
       - Shared
+    dependencies:
+      - package: Markdown
     settings:
       base:
         PRODUCT_NAME: MinMDQuickLook
@@ -84,7 +94,7 @@ targets:
       properties:
         com.apple.security.app-sandbox: true
         com.apple.security.files.user-selected.read-only: true
-        # WebKit's content process needs this inside a sandboxed extension; also lets remote images load.
+        # Remote images, and WebKit's content process for Mermaid diagrams.
         com.apple.security.network.client: true
         # Read the app's theme / font preferences without needing an app group.
         com.apple.security.temporary-exception.shared-preference.read-only:

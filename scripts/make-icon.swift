@@ -1,4 +1,4 @@
-// Renders the app icon: a Solarized-dark squircle with a JetBrains Mono "md".
+// Renders the app icon: a GitHub-dark squircle with a JetBrains Mono "md".
 // Usage: swift scripts/make-icon.swift <JetBrainsMono-Bold.ttf> <output.appiconset>
 import AppKit
 
@@ -17,13 +17,13 @@ func render(_ px: Int) -> Data {
     let inset = s * 0.1
     let rect = NSRect(x: inset, y: inset, width: s - 2 * inset, height: s - 2 * inset)
     let path = NSBezierPath(roundedRect: rect, xRadius: rect.width * 0.225, yRadius: rect.width * 0.225)
-    NSColor(srgbRed: 0x00 / 255, green: 0x2B / 255, blue: 0x36 / 255, alpha: 1).setFill()
+    NSColor(srgbRed: 0x0D / 255, green: 0x11 / 255, blue: 0x17 / 255, alpha: 1).setFill()
     path.fill()
 
     let font = NSFont(name: "JetBrainsMono-Bold", size: rect.width * 0.36) ?? .monospacedSystemFont(ofSize: rect.width * 0.36, weight: .bold)
     let text = NSMutableAttributedString()
-    text.append(NSAttributedString(string: "#", attributes: [.font: font, .foregroundColor: NSColor(srgbRed: 0xCB / 255, green: 0x4B / 255, blue: 0x16 / 255, alpha: 1)]))
-    text.append(NSAttributedString(string: "md", attributes: [.font: font, .foregroundColor: NSColor(srgbRed: 0xFD / 255, green: 0xF6 / 255, blue: 0xE3 / 255, alpha: 1)]))
+    text.append(NSAttributedString(string: "#", attributes: [.font: font, .foregroundColor: NSColor(srgbRed: 0x8B / 255, green: 0x94 / 255, blue: 0x9E / 255, alpha: 1)]))
+    text.append(NSAttributedString(string: "md", attributes: [.font: font, .foregroundColor: NSColor(srgbRed: 0xF0 / 255, green: 0xF6 / 255, blue: 0xFC / 255, alpha: 1)]))
     let size = text.size()
     text.draw(at: NSPoint(x: rect.midX - size.width / 2, y: rect.midY - size.height / 2))
     NSGraphicsContext.restoreGraphicsState()

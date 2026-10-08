@@ -1,6 +1,6 @@
 # minmd
 
-An extremely minimal Markdown **viewer** for macOS. No editor, no sidebar, no tabs — one file per window, rendered in [Solarized](https://ethanschoonover.com/solarized/) with [JetBrains Mono](https://www.jetbrains.com/lp/mono/), and the same rendering when you press <kbd>Space</kbd> in Finder.
+An extremely minimal, fast Markdown **viewer** for macOS. No editor, no sidebar, no tabs — one file per window, rendered natively in [JetBrains Mono](https://www.jetbrains.com/lp/mono/) with GitHub's light and dark colors, and the same rendering when you press <kbd>Space</kbd> in Finder.
 
 <p>
   <img src="docs/screenshot-light.png" width="49%" alt="minmd, light">
@@ -11,11 +11,34 @@ An extremely minimal Markdown **viewer** for macOS. No editor, no sidebar, no ta
 
 - **Viewer only.** minmd never writes to your files.
 - **One file, one window.** Opening another Markdown file opens another window.
+- **Native and fast.** AppKit text rendering — no web view for the document itself.
 - **Quick Look.** Select a `.md` file in Finder and press <kbd>Space</kbd>.
-- **Live reload.** Edit the file in any editor and the window updates in place, keeping your scroll position.
-- **GitHub-flavoured Markdown.** Tables, task lists, strikethrough, autolinks, front matter, syntax-highlighted code.
+- **Live reload.** Edit the file in any editor; the window updates in place and keeps its scroll position.
+- **GitHub-flavoured Markdown.** Tables, task lists, strikethrough, autolinks, front matter, images, syntax-highlighted code and [Mermaid](https://mermaid.js.org) diagrams.
 - **Two settings** (<kbd>⌘,</kbd>): theme (System / Light / Dark) and font. Quick Look uses the same settings.
-- <kbd>⌘F</kbd> find, <kbd>⌘+</kbd> / <kbd>⌘-</kbd> / <kbd>⌘0</kbd> zoom. Links open in your browser; links to other Markdown files open in minmd.
+- <kbd>⌘F</kbd> find, <kbd>⌘+</kbd> / <kbd>⌘-</kbd> / <kbd>⌘0</kbd> zoom, <kbd>⇧⌘R</kbd> show in Finder. Links open in your browser; links to other Markdown files open in minmd.
+
+## Performance
+
+Time from `open file.md` to the first painted frame, median of 10 runs on an M-series Mac:
+
+| | minmd | bare AppKit app (floor) |
+|---|---|---|
+| App not running (launch) | ~275 ms | ~220 ms |
+| App already running (new window) | ~90 ms | — |
+| 200 KB / 5,600-line document, launch | ~350 ms | — |
+
+How it stays quick:
+
+- Markdown is parsed by cmark-gfm (via swift-markdown) straight into an attributed string — a typical README takes ~4 ms.
+- The text system and fonts warm up on a background thread while AppKit is still launching.
+- Syntax highlighting (highlight.js in JavaScriptCore) runs off the main thread and colors code blocks right after the first frame.
+- Mermaid diagrams need a browser engine, so a hidden WebKit view is started only for documents that contain one, after the first frame.
+- Images are sized from their headers up front and decoded on a background thread; layout is non-contiguous.
+
+minmd stays running after its last window closes, so later files open in ~90 ms.
+
+To measure yourself: `open --env MINMD_TRACE=/tmp/minmd.log -a minmd file.md` writes launch milestones (ms since process start) to that file.
 
 ## Install
 
@@ -44,12 +67,10 @@ make build   # command-line Release build into ./build
 The Xcode project is generated from `project.yml` and is not checked in.
 
 ```
-App/          SwiftUI app: read-only DocumentGroup, settings, file watcher
+App/          AppKit app: read-only NSDocument, window, menus, settings, file watcher
 QuickLook/    Quick Look preview extension
-Shared/       Renderer + web view used by both; CSS, JS, fonts
+Shared/       Renderer, viewer, highlighter, Mermaid renderer; fonts and vendored JS
 ```
-
-Markdown is rendered by [marked](https://github.com/markedjs/marked) and [highlight.js](https://highlightjs.org) inside a `WKWebView`. Everything is inlined into the page, and a strict Content-Security-Policy stops scripts embedded in Markdown files from running.
 
 ## License
 

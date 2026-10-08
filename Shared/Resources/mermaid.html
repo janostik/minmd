@@ -1,0 +1,32 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; padding: 0; background: transparent; }
+  #diagram { display: inline-block; padding: 4px; }
+</style>
+<script src="mermaid.min.js"></script>
+</head>
+<body>
+<div id="diagram"></div>
+<script>
+  let counter = 0;
+  async function renderDiagram(source, dark, width) {
+    mermaid.initialize({
+      startOnLoad: false,
+      securityLevel: "strict",
+      theme: dark ? "dark" : "default",
+      themeVariables: { background: "transparent" },
+      fontFamily: "-apple-system, sans-serif",
+    });
+    const container = document.getElementById("diagram");
+    container.style.maxWidth = width + "px";
+    const { svg } = await mermaid.render("d" + counter++, source);
+    container.innerHTML = svg;
+    const rect = container.getBoundingClientRect();
+    return { width: rect.width, height: rect.height };
+  }
+</script>
+</body>
+</html>
