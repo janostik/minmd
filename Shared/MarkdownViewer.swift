@@ -72,7 +72,12 @@ final class MarkdownViewer: NSObject, NSTextViewDelegate {
         let origin = scrollView.contentView.bounds.origin
 
         textView.maxContentWidth = 54 * size
+        let selection = textView.selectedRange()
         textView.textStorage?.setAttributedString(rendered.text)
+        // Replacing the text leaves the insertion point at the end, and hosts (Spotlight, Quick Look,
+        // window activation) scroll it into view. Start at the top; keep the selection on live reload.
+        let length = rendered.text.length
+        textView.setSelectedRange(sameDocument && NSMaxRange(selection) <= length ? selection : NSRange(location: 0, length: 0))
         anchors = rendered.anchors
         diagrams = rendered.diagrams
 

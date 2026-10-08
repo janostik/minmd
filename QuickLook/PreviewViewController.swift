@@ -26,6 +26,7 @@ final class PreviewViewController: NSViewController, QLPreviewingController {
             ?? String(decoding: data, as: UTF8.self)
         viewer.show(markdown: text, directory: url.deletingLastPathComponent(),
                     fontFamily: Preferences.fontFamily, zoom: Preferences.zoom)
+        viewer.scrollToTop()
         handler(nil)
     }
 }
