@@ -1,0 +1,106 @@
+name: minmd
+options:
+  bundleIdPrefix: com.janostik
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+  generateEmptyDirectories: true
+
+settings:
+  base:
+    MARKETING_VERSION: 0.1.0
+    CURRENT_PROJECT_VERSION: 1
+    SWIFT_VERSION: "5.0"
+    SWIFT_STRICT_CONCURRENCY: minimal
+    # Ad-hoc signing so the project builds without an Apple developer account.
+    CODE_SIGN_IDENTITY: "-"
+    CODE_SIGN_STYLE: Manual
+    DEVELOPMENT_TEAM: ""
+    ENABLE_HARDENED_RUNTIME: YES
+    DEAD_CODE_STRIPPING: YES
+    GENERATE_INFOPLIST_FILE: NO
+
+targets:
+  minmd:
+    type: application
+    platform: macOS
+    sources:
+      - App
+      - Shared
+    dependencies:
+      - target: MinMDQuickLook
+        embed: true
+    settings:
+      base:
+        PRODUCT_NAME: minmd
+        PRODUCT_BUNDLE_IDENTIFIER: com.janostik.minmd
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleDisplayName: minmd
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSApplicationCategoryType: public.app-category.productivity
+        LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
+        NSHumanReadableCopyright: MIT License
+        CFBundleDocumentTypes:
+          - CFBundleTypeName: Markdown Document
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: Default
+            LSItemContentTypes:
+              - net.daringfireball.markdown
+        UTImportedTypeDeclarations:
+          - UTTypeIdentifier: net.daringfireball.markdown
+            UTTypeDescription: Markdown Document
+            UTTypeConformsTo:
+              - public.plain-text
+            UTTypeTagSpecification:
+              public.filename-extension:
+                - md
+                - markdown
+                - mdown
+                - mkd
+                - mkdn
+                - mdwn
+                - mdtxt
+                - mdtext
+              public.mime-type:
+                - text/markdown
+
+  MinMDQuickLook:
+    type: app-extension
+    platform: macOS
+    sources:
+      - QuickLook
+      - Shared
+    settings:
+      base:
+        PRODUCT_NAME: MinMDQuickLook
+        PRODUCT_BUNDLE_IDENTIFIER: com.janostik.minmd.quicklook
+        SKIP_INSTALL: YES
+    entitlements:
+      path: QuickLook/QuickLook.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.files.user-selected.read-only: true
+        # WebKit's content process needs this inside a sandboxed extension; also lets remote images load.
+        com.apple.security.network.client: true
+        # Read the app's theme / font preferences without needing an app group.
+        com.apple.security.temporary-exception.shared-preference.read-only:
+          - com.janostik.minmd
+    info:
+      path: QuickLook/Info.plist
+      properties:
+        CFBundleDisplayName: minmd Quick Look
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.quicklook.preview
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).PreviewViewController
+          NSExtensionAttributes:
+            QLIsDataBasedPreview: false
+            QLSupportsSearchableItems: false
+            QLSupportedContentTypes:
+              - net.daringfireball.markdown
