@@ -1,33 +1,62 @@
 // Renders the app icon: a white squircle with a large, softly glowing "#" in minmd's link blue.
-// Usage: swift scripts/make-icon.swift <output.appiconset>
+// Usage: swift scripts/make-icon.swift <output.appiconset> [params.json]
+// The parameters match the icon tuner page; all lengths are fractions of the icon size.
 import AppKit
 import CoreImage
 
-let output = URL(fileURLWithPath: CommandLine.arguments[1])
+struct Params: Codable {
+    var size = 0.9          // hash scale around the center
+    var stroke = 0.085      // stroke width
+    var slant = 0.045       // horizontal lean of the vertical strokes (each end)
+    var gapX = 0.18         // distance between the two vertical strokes
+    var gapY = 0.16         // distance between the two horizontal strokes
+    var length = 0.46       // length of every stroke
+    var glowBlur = 0.045    // blur radius (sigma) of the glow
+    var glowOpacity = 0.7
+    var glowOffset = 0.025  // how far the glow sits below the hash
+    var colorTop = "#4493F8"
+    var colorBottom = "#0969DA"
+    var bgTop = "#FFFFFF"
+    var bgBottom = "#F0F5FC"
+}
 
-let blue = CGColor(srgbRed: 0x09 / 255, green: 0x69 / 255, blue: 0xDA / 255, alpha: 1)
-let lightBlue = CGColor(srgbRed: 0x44 / 255, green: 0x93 / 255, blue: 0xF8 / 255, alpha: 1)
+let output = URL(fileURLWithPath: CommandLine.arguments[1])
+let params: Params = CommandLine.arguments.count > 2
+    ? try! JSONDecoder().decode(Params.self, from: Data(contentsOf: URL(fileURLWithPath: CommandLine.arguments[2])))
+    : Params()
+
+func color(_ hex: String) -> CGColor {
+    let value = UInt32(hex.trimmingCharacters(in: CharacterSet(charactersIn: "#")), radix: 16) ?? 0
+    return CGColor(srgbRed: CGFloat((value >> 16) & 0xFF) / 255, green: CGFloat((value >> 8) & 0xFF) / 255,
+                   blue: CGFloat(value & 0xFF) / 255, alpha: 1)
+}
 
 /// The hash as four rounded strokes (two slanted verticals, two horizontals), filled with a gradient.
 func hashImage(size s: CGFloat) -> CGImage {
+    let p = params
     let context = CGContext(data: nil, width: Int(s), height: Int(s), bitsPerComponent: 8, bytesPerRow: 0,
                             space: CGColorSpace(name: CGColorSpace.sRGB)!,
                             bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
-    let stroke = s * 0.085
-    let slant = s * 0.045
+    // Unit coordinates (y up), scaled around the center by `size`.
+    func point(_ x: Double, _ y: Double) -> CGPoint {
+        CGPoint(x: (0.5 + (x - 0.5) * p.size) * s, y: (0.5 + (y - 0.5) * p.size) * s)
+    }
+    let half = p.length / 2
     let path = CGMutablePath()
-    for x in [s * 0.41, s * 0.59] {
-        path.move(to: CGPoint(x: x - slant, y: s * 0.27))
-        path.addLine(to: CGPoint(x: x + slant, y: s * 0.73))
+    for x in [0.5 - p.gapX / 2, 0.5 + p.gapX / 2] {
+        path.move(to: point(x - p.slant, 0.5 - half))
+        path.addLine(to: point(x + p.slant, 0.5 + half))
     }
-    for y in [s * 0.42, s * 0.58] {
-        path.move(to: CGPoint(x: s * 0.27, y: y))
-        path.addLine(to: CGPoint(x: s * 0.73, y: y))
+    for y in [0.5 - p.gapY / 2, 0.5 + p.gapY / 2] {
+        path.move(to: point(0.5 - half, y))
+        path.addLine(to: point(0.5 + half, y))
     }
-    context.addPath(path.copy(strokingWithWidth: stroke, lineCap: .round, lineJoin: .round, miterLimit: 1))
+    let width = p.stroke * p.size * s
+    context.addPath(path.copy(strokingWithWidth: width, lineCap: .round, lineJoin: .round, miterLimit: 1))
     context.clip()
-    let gradient = CGGradient(colorsSpace: nil, colors: [blue, lightBlue] as CFArray, locations: [0, 1])!
-    context.drawLinearGradient(gradient, start: CGPoint(x: 0, y: s * 0.27), end: CGPoint(x: 0, y: s * 0.73), options: [.drawsBeforeStartLocation, .drawsAfterEndLocation])
+    let gradient = CGGradient(colorsSpace: nil, colors: [color(p.colorBottom), color(p.colorTop)] as CFArray, locations: [0, 1])!
+    context.drawLinearGradient(gradient, start: point(0.5, 0.5 - half), end: point(0.5, 0.5 + half),
+                               options: [.drawsBeforeStartLocation, .drawsAfterEndLocation])
     return context.makeImage()!
 }
 
@@ -45,31 +74,28 @@ func render(_ px: Int) -> Data {
     let rect = CGRect(x: inset, y: inset, width: s - 2 * inset, height: s - 2 * inset)
     let squircle = CGPath(roundedRect: rect, cornerWidth: rect.width * 0.225, cornerHeight: rect.width * 0.225, transform: nil)
     context.saveGState()
-    context.setShadow(offset: CGSize(width: 0, height: -s * 0.01), blur: s * 0.03,
-                      color: CGColor(gray: 0, alpha: 0.25))
+    context.setShadow(offset: CGSize(width: 0, height: -s * 0.01), blur: s * 0.03, color: CGColor(gray: 0, alpha: 0.25))
     context.addPath(squircle)
     context.setFillColor(.white)
     context.fillPath()
     context.restoreGState()
 
-    // Background: white, cooling very slightly toward the bottom.
     context.saveGState()
     context.addPath(squircle)
     context.clip()
-    let background = CGGradient(colorsSpace: nil, colors: [
-        CGColor(srgbRed: 0.94, green: 0.96, blue: 0.99, alpha: 1), CGColor.white,
-    ] as CFArray, locations: [0, 1])!
+    let background = CGGradient(colorsSpace: nil, colors: [color(params.bgBottom), color(params.bgTop)] as CFArray,
+                                locations: [0, 1])!
     context.drawLinearGradient(background, start: CGPoint(x: 0, y: rect.minY), end: CGPoint(x: 0, y: rect.maxY), options: [])
 
     // Glow: a blurred copy of the hash, slightly lower, then the crisp hash on top.
     let hash = hashImage(size: s)
     let blurred = CIImage(cgImage: hash)
         .clampedToExtent()
-        .applyingGaussianBlur(sigma: Double(s) * 0.045)
+        .applyingGaussianBlur(sigma: params.glowBlur * Double(s))
         .cropped(to: CGRect(x: 0, y: 0, width: s, height: s))
     let glow = CIContext().createCGImage(blurred, from: blurred.extent)!
-    context.setAlpha(0.7)
-    context.draw(glow, in: CGRect(x: 0, y: -s * 0.025, width: s, height: s))
+    context.setAlpha(params.glowOpacity)
+    context.draw(glow, in: CGRect(x: 0, y: -s * params.glowOffset, width: s, height: s))
     context.setAlpha(1)
     context.draw(hash, in: CGRect(x: 0, y: 0, width: s, height: s))
     context.restoreGState()
