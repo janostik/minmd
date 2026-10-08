@@ -147,19 +147,28 @@ final class MarkdownRenderer {
     private func listItems(_ items: [ListItem], ordered start: Int?, ctx: Context) {
         let markerWidth = size * (start == nil ? 1.6 : 2.3)
         for (index, item) in items.enumerated() {
-            let markerText: String
             var markerStyle = Style(color: Palette.muted)
-            switch item.checkbox {
-            case .checked?: markerText = "☑"; markerStyle.color = Palette.link
-            case .unchecked?: markerText = "☐"
-            case nil:
+            var markerAttributes: [NSAttributedString.Key: Any] {
+                var attributes = self.attributes(markerStyle)
+                attributes[.backgroundColor] = nil
+                return attributes
+            }
+            let marker: NSAttributedString
+            if let checkbox = item.checkbox {
+                // Drawn, not typed: ☐/☑ aren't in JetBrains Mono and would fall back to another font.
+                let attachment = NSTextAttachment()
+                attachment.attachmentCell = CheckboxCell(checked: checkbox == .checked, font: font(Style()))
+                let text = NSMutableAttributedString(attachment: attachment)
+                text.append(NSAttributedString(string: "\t"))
+                text.addAttributes(markerAttributes, range: NSRange(location: 0, length: text.length))
+                marker = text
+            } else {
+                let markerText: String
                 if let start { markerText = "\(start + index)."; markerStyle.code = true } else {
                     markerText = ["•", "◦", "▪"][Int(ctx.indent / (size * 1.6)) % 3]
                 }
+                marker = NSAttributedString(string: markerText + "\t", attributes: markerAttributes)
             }
-            var markerAttributes = attributes(markerStyle)
-            markerAttributes[.backgroundColor] = nil
-            let marker = NSAttributedString(string: markerText + "\t", attributes: markerAttributes)
             var inner = ctx
             inner.indent += markerWidth
             inner.tight = true
@@ -509,6 +518,58 @@ final class MarkdownRenderer {
         }
         return nil
     }
+}
+
+/// A task-list checkbox: a rounded square, filled with a check mark when done. Colors resolve at
+/// draw time, so it follows theme changes like the text does.
+final class CheckboxCell: NSTextAttachmentCell {
+    private let checked: Bool
+    private let side: CGFloat
+    private let baselineOffset: CGFloat
+
+    init(checked: Bool, font: NSFont) {
+        self.checked = checked
+        side = (font.pointSize * 0.95).rounded()
+        // Center the box on the capital letters of the line.
+        baselineOffset = ((font.capHeight - side) / 2).rounded()
+        super.init(textCell: "")
+    }
+
+    @available(*, unavailable)
+    required init(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    override func cellSize() -> NSSize { NSSize(width: side, height: side) }
+    override func cellBaselineOffset() -> NSPoint { NSPoint(x: 0, y: baselineOffset) }
+
+    override func cellFrame(for textContainer: NSTextContainer, proposedLineFragment lineFrag: NSRect,
+                            glyphPosition position: NSPoint, characterIndex charIndex: Int) -> NSRect {
+        NSRect(x: 0, y: baselineOffset, width: side, height: side)
+    }
+
+    override func draw(withFrame cellFrame: NSRect, in controlView: NSView?) {
+        let box = cellFrame.insetBy(dx: 0.75, dy: 0.75)
+        let shape = NSBezierPath(roundedRect: box, xRadius: side * 0.24, yRadius: side * 0.24)
+        guard checked else {
+            Palette.muted.withAlphaComponent(0.7).setStroke()
+            shape.lineWidth = 1.5
+            shape.stroke()
+            return
+        }
+        Palette.link.setFill()
+        shape.fill()
+        // The text view is flipped: y grows downward.
+        let check = NSBezierPath()
+        check.move(to: NSPoint(x: box.minX + box.width * 0.26, y: box.minY + box.height * 0.53))
+        check.line(to: NSPoint(x: box.minX + box.width * 0.43, y: box.minY + box.height * 0.70))
+        check.line(to: NSPoint(x: box.minX + box.width * 0.75, y: box.minY + box.height * 0.33))
+        check.lineWidth = side * 0.13
+        check.lineCapStyle = .round
+        check.lineJoinStyle = .round
+        NSColor.white.setStroke()
+        check.stroke()
+    }
+
+    override func wantsToTrackMouse() -> Bool { false }
 }
 
 /// Draws an image scaled down to fit the text column, or a one-line placeholder until it has one.
