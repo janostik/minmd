@@ -1,0 +1,15 @@
+{
+  "size": 0.8,
+  "stroke": 0.085,
+  "slant": 0.045,
+  "gapX": 0.18,
+  "gapY": 0.16,
+  "length": 0.46,
+  "glowBlur": 0.045,
+  "glowOpacity": 0.7,
+  "glowOffset": 0.025,
+  "colorTop": "#4493F8",
+  "colorBottom": "#0969DA",
+  "bgTop": "#FFFFFF",
+  "bgBottom": "#F0F5FC"
+}

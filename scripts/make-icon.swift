@@ -1,5 +1,5 @@
 // Renders the app icon: a white squircle with a large, softly glowing "#" in minmd's link blue.
-// Usage: swift scripts/make-icon.swift <output.appiconset> [params.json]
+// Usage: swift scripts/make-icon.swift <output.appiconset> [scripts/icon.json]
 // The parameters match the icon tuner page; all lengths are fractions of the icon size.
 import AppKit
 import CoreImage
